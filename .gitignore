@@ -1,0 +1,9 @@
+node_modules
+dist
+dist-server
+*.tsbuildinfo
+.env
+.env.local
+.env.*.local
+.env.api.key
+.DS_Store
