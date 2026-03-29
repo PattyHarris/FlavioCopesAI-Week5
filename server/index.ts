@@ -20,7 +20,8 @@ dotenv.config({ path: ".env.api.key", override: true });
 
 const app = express();
 const port = Number(process.env.PORT || 8787);
-const host = process.env.HOST || "127.0.0.1";
+const isHostedRuntime = Boolean(process.env.RENDER || process.env.PORT);
+const host = process.env.HOST || (isHostedRuntime ? "0.0.0.0" : "127.0.0.1");
 
 const requestSchema = z.object({
   ingredients: z.array(z.string().min(1)).min(1),
