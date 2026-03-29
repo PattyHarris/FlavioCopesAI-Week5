@@ -95,3 +95,11 @@ If you want, I can next give you a concrete deployment recommendation matrix for
     - easiest setup
     - best production-ready setup
 
+## Local vs Remote
+
+See Readme but in essence: So the switch is entirely env-based. There isn’t a separate command for “local backend vs Supabase” right now.
+
+For record keeping, the quick rule is:
+
+no Supabase env vars = local fallback mode
+Supabase env vars present = local backend with Supabase persistence

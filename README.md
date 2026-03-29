@@ -33,13 +33,21 @@ Optional variables:
 - `PORT` defaults to `8787`
 - `HOST` defaults to `127.0.0.1`
 - `STITCH_API_KEY` is not required for the current local app flow
-- `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` are reserved for later and are not used by the app yet
+- `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, and `SUPABASE_SECRET_KEY` are reserved for later and are not used by the app yet
 
 3. Install dependencies:
 
 ```bash
 npm install
 ```
+
+4. Optional for Supabase-backed persistence:
+
+- run [supabase/schema.sql](/Users/pattyharris/Documents/FlavioCopesBootcamp/AIBootcamp/Week5/supabase/schema.sql) in the Supabase SQL editor
+- set `SUPABASE_URL`
+- set `SUPABASE_SECRET_KEY`
+
+If those Supabase keys are not set, the app falls back to local browser bookmarks and in-memory search history.
 
 ## Run Locally
 
@@ -69,6 +77,47 @@ npm run dev:server
 ```
 
 This is useful if you want to work on the UI and API in separate terminal tabs.
+
+## Run With Or Without Supabase
+
+### With Supabase persistence
+
+Set:
+
+- `SUPABASE_URL`
+- `SUPABASE_SECRET_KEY`
+
+Then run:
+
+```bash
+npm run dev
+```
+
+In this mode:
+
+- bookmarks persist in Supabase
+- search history persists in Supabase
+- the local backend still runs on your machine
+
+### Without Supabase persistence
+
+Leave these unset:
+
+- `SUPABASE_URL`
+- `SUPABASE_SECRET_KEY`
+- `SUPABASE_PUBLISHABLE_KEY`
+
+Then run:
+
+```bash
+npm run dev
+```
+
+In this mode:
+
+- bookmarks fall back to browser `localStorage`
+- search history falls back to local runtime memory
+- no Supabase reads or writes are attempted
 
 ## Production Verification
 
@@ -102,8 +151,8 @@ Optional:
 Reserved for later Supabase integration:
 
 - `SUPABASE_URL`
-- `SUPABASE_ANON_KEY`
-- `SUPABASE_SERVICE_ROLE_KEY`
+- `SUPABASE_PUBLISHABLE_KEY`
+- `SUPABASE_SECRET_KEY`
 
 Suggested current Render setup:
 
@@ -159,14 +208,15 @@ After the recipes are generated, the backend also attempts to create a recipe im
 - [server/index.ts](/Users/pattyharris/Documents/FlavioCopesBootcamp/AIBootcamp/Week5/server/index.ts): Express server, health route, and `/api/recipes/suggest` endpoint
 - [server/openai.ts](/Users/pattyharris/Documents/FlavioCopesBootcamp/AIBootcamp/Week5/server/openai.ts): `gpt-4o-mini` recipe generation, JSON schema response handling, and `dall-e-3` image generation
 - [server/cache.ts](/Users/pattyharris/Documents/FlavioCopesBootcamp/AIBootcamp/Week5/server/cache.ts): in-memory caching for repeated ingredient searches
+- [server/persistence.ts](/Users/pattyharris/Documents/FlavioCopesBootcamp/AIBootcamp/Week5/server/persistence.ts): Supabase-backed persistence for bookmarks and search history
+- [supabase/schema.sql](/Users/pattyharris/Documents/FlavioCopesBootcamp/AIBootcamp/Week5/supabase/schema.sql): SQL schema for bookmarks and search history tables
 - [src/styles/global.css](/Users/pattyharris/Documents/FlavioCopesBootcamp/AIBootcamp/Week5/src/styles/global.css): Tailwind v4 theme tokens and global typography
 
 ## Known Issues / Current Limitations
 
 - The README and some setup files still use the older working project name `Recipe Finder`, while the UI branding is now `Pantry Chef`.
 - Recipe response caching is in-memory only, so cached AI results are lost whenever the backend restarts.
-- Bookmarks are stored only in browser `localStorage`, so they are device-specific and can be cleared by the user or browser.
-- Search history rows are kept only in the current browser session and are not persisted across refreshes.
+- Bookmarks and search history persist through Supabase only when `SUPABASE_URL` and `SUPABASE_SECRET_KEY` are configured; otherwise the app falls back to browser/local memory behavior.
 - Recipe image generation depends on `dall-e-3`; if image creation fails, recipes still render without images.
 - The Stitch-exported screens and assets have not yet been imported directly, so the UI is still an approximation of the intended Stitch design.
 - The app is currently tuned for local development and has not yet been documented for remote deployment.

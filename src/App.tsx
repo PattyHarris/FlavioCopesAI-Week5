@@ -3,8 +3,19 @@ import { IngredientInput } from "./components/IngredientInput";
 import { RecipeCard } from "./components/RecipeCard";
 import { RecipeModal } from "./components/RecipeModal";
 import { SearchResultsRow } from "./components/SearchResultsRow";
-import { clearBookmarks, getBookmarks, toggleBookmark } from "./lib/storage";
-import { Recipe, RecipeResponse, RecipeSearchGroup } from "./lib/types";
+import {
+  clearBookmarks,
+  getBookmarks,
+  hasStoredBookmarks,
+  saveBookmarks,
+  toggleBookmark,
+} from "./lib/storage";
+import {
+  PersistenceStateResponse,
+  Recipe,
+  RecipeResponse,
+  RecipeSearchGroup,
+} from "./lib/types";
 
 type View = "discover" | "bookmarks";
 
@@ -21,9 +32,59 @@ export default function App() {
   const [activeView, setActiveView] = useState<View>("discover");
   const [lastFetchSummary, setLastFetchSummary] = useState("");
   const [isClearHistoryModalOpen, setIsClearHistoryModalOpen] = useState(false);
+  const [persistenceEnabled, setPersistenceEnabled] = useState(false);
 
   useEffect(() => {
-    setBookmarks(getBookmarks());
+    let isMounted = true;
+
+    const bootstrap = async () => {
+      const localBookmarks = getBookmarks();
+      if (isMounted) {
+        setBookmarks(localBookmarks);
+      }
+
+      try {
+        const response = await fetch("/api/state");
+        if (!response.ok) {
+          throw new Error("Unable to load app state.");
+        }
+
+        const data = (await response.json()) as PersistenceStateResponse;
+        if (!isMounted) {
+          return;
+        }
+
+        setPersistenceEnabled(data.enabled);
+
+        if (data.enabled) {
+          setBookmarks(data.bookmarks);
+          saveBookmarks(data.bookmarks);
+          setSearchGroups(data.searchHistory);
+          setImageStates(() => {
+            const next: Record<string, "idle" | "loading" | "ready" | "failed"> = {};
+            for (const group of data.searchHistory) {
+              for (const recipe of group.recipes) {
+                next[`${group.id}:${recipe.id}`] = recipe.imageUrl ? "ready" : "idle";
+              }
+            }
+            return next;
+          });
+        }
+      } catch {
+        if (isMounted) {
+          setPersistenceEnabled(false);
+          if (!hasStoredBookmarks()) {
+            setBookmarks(localBookmarks);
+          }
+        }
+      }
+    };
+
+    void bootstrap();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const bookmarkedIds = useMemo(
@@ -55,11 +116,17 @@ export default function App() {
   const handleToggleBookmark = (recipe: Recipe) => {
     const next = toggleBookmark(recipe);
     setBookmarks(next);
+    if (persistenceEnabled) {
+      void persistBookmarks(next);
+    }
   };
 
   const handleClearBookmarks = () => {
     clearBookmarks();
     setBookmarks([]);
+    if (persistenceEnabled) {
+      void fetch("/api/bookmarks", { method: "DELETE" });
+    }
   };
 
   const handleClearSearchHistory = () => {
@@ -68,6 +135,29 @@ export default function App() {
     setLastFetchSummary("");
     setSelectedRecipe(null);
     setIsClearHistoryModalOpen(false);
+    if (persistenceEnabled) {
+      void fetch("/api/search-history", { method: "DELETE" });
+    }
+  };
+
+  const persistBookmarks = async (nextBookmarks: Recipe[]) => {
+    await fetch("/api/bookmarks", {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ bookmarks: nextBookmarks }),
+    });
+  };
+
+  const persistSearchGroup = async (group: RecipeSearchGroup) => {
+    await fetch("/api/search-history", {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ group }),
+    });
   };
 
   const updateRecipeImageInGroups = (
@@ -75,19 +165,6 @@ export default function App() {
     recipeId: string,
     imageUrl: string,
   ) => {
-    setSearchGroups((current) =>
-      current.map((group) =>
-        group.id !== groupId
-          ? group
-          : {
-              ...group,
-              recipes: group.recipes.map((recipe) =>
-                recipe.id !== recipeId ? recipe : { ...recipe, imageUrl },
-              ),
-            },
-      ),
-    );
-
     setSelectedRecipe((current) =>
       current && current.id === recipeId ? { ...current, imageUrl } : current,
     );
@@ -98,13 +175,34 @@ export default function App() {
       );
 
       if (next.some((recipe) => recipe.id === recipeId)) {
-        // Keep localStorage in sync if a bookmarked recipe receives its image later.
-        const updated = next;
-        window.localStorage.setItem("recipe-finder-bookmarks", JSON.stringify(updated));
-        return updated;
+        saveBookmarks(next);
+        if (persistenceEnabled) {
+          void persistBookmarks(next);
+        }
+        return next;
       }
 
       return current;
+    });
+
+    setSearchGroups((current) => {
+      const nextGroups = current.map((group) =>
+        group.id !== groupId
+          ? group
+          : {
+              ...group,
+              recipes: group.recipes.map((recipe) =>
+                recipe.id !== recipeId ? recipe : { ...recipe, imageUrl },
+              ),
+            },
+      );
+
+      const updatedGroup = nextGroups.find((group) => group.id === groupId);
+      if (updatedGroup && persistenceEnabled) {
+        void persistSearchGroup(updatedGroup);
+      }
+
+      return nextGroups;
     });
   };
 
@@ -181,6 +279,9 @@ export default function App() {
         return next;
       });
       setSearchGroups((current) => [nextGroup, ...current]);
+      if (persistenceEnabled) {
+        void persistSearchGroup(nextGroup);
+      }
       setActiveView("discover");
       setLastFetchSummary(
         `${data.cached ? "Loaded from cache" : "Fresh AI suggestions"} for ${data.ingredients.join(", ")}.`,

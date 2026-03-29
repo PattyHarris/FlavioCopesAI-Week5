@@ -21,3 +21,9 @@ export type RecipeSearchGroup = RecipeResponse & {
   id: string;
   createdAt: number;
 };
+
+export type PersistenceStateResponse = {
+  enabled: boolean;
+  bookmarks: Recipe[];
+  searchHistory: RecipeSearchGroup[];
+};
