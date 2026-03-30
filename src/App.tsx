@@ -3,6 +3,7 @@ import { IngredientInput } from "./components/IngredientInput";
 import { RecipeCard } from "./components/RecipeCard";
 import { RecipeModal } from "./components/RecipeModal";
 import { SearchResultsRow } from "./components/SearchResultsRow";
+import { normalizeRecipe, normalizeRecipes, normalizeSearchGroup } from "./lib/recipeIdentity";
 import {
   clearBookmarks,
   getBookmarks,
@@ -40,7 +41,7 @@ export default function App() {
     const bootstrap = async () => {
       const localBookmarks = getBookmarks();
       if (isMounted) {
-        setBookmarks(localBookmarks);
+        setBookmarks(normalizeRecipes(localBookmarks));
       }
 
       try {
@@ -57,12 +58,15 @@ export default function App() {
         setPersistenceEnabled(data.enabled);
 
         if (data.enabled) {
-          setBookmarks(data.bookmarks);
-          saveBookmarks(data.bookmarks);
-          setSearchGroups(data.searchHistory);
+          const normalizedBookmarks = normalizeRecipes(data.bookmarks);
+          const normalizedHistory = data.searchHistory.map(normalizeSearchGroup);
+
+          setBookmarks(normalizedBookmarks);
+          saveBookmarks(normalizedBookmarks);
+          setSearchGroups(normalizedHistory);
           setImageStates(() => {
             const next: Record<string, "idle" | "loading" | "ready" | "failed"> = {};
-            for (const group of data.searchHistory) {
+            for (const group of normalizedHistory) {
               for (const recipe of group.recipes) {
                 next[`${group.id}:${recipe.id}`] = recipe.imageUrl ? "ready" : "idle";
               }
@@ -114,7 +118,7 @@ export default function App() {
   };
 
   const handleToggleBookmark = (recipe: Recipe) => {
-    const next = toggleBookmark(recipe);
+    const next = toggleBookmark(normalizeRecipe(recipe));
     setBookmarks(next);
     if (persistenceEnabled) {
       void persistBookmarks(next);
@@ -267,6 +271,7 @@ export default function App() {
       const data = (await response.json()) as RecipeResponse;
       const nextGroup: RecipeSearchGroup = {
         ...data,
+        recipes: normalizeRecipes(data.recipes),
         id: `${Date.now()}-${data.ingredients.join("-")}`,
         createdAt: Date.now(),
       };
