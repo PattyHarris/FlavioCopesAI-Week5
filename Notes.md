@@ -103,3 +103,24 @@ For record keeping, the quick rule is:
 
 no Supabase env vars = local fallback mode
 Supabase env vars present = local backend with Supabase persistence
+
+## Notes for Discord
+
+As others have done, I used Stitches to design the application but ran into a few communication issues with the Agent when trying to get the Agent to use the Stitches design directly. In fact, one of the TODO's mentioned by the Agent for improvement was to use the Stitches design directly. Funny. I like using VSCode and again used GPT-5.4.
+
+Stack:
+
+- React 18
+- TypeScript
+- Vite
+- Tailwind CSS v4
+- Express
+- OpenAI GPT-4o-mini
+- DALL-E 3
+
+Remote Deployment:
+
+- Render
+- Supabase
+
+The application performs all of the basic features.
