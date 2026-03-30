@@ -118,10 +118,17 @@ export default function App() {
   };
 
   const handleToggleBookmark = (recipe: Recipe) => {
-    const next = toggleBookmark(normalizeRecipe(recipe));
+    const normalizedRecipe = normalizeRecipe(recipe);
+    const wasBookmarked = bookmarks.some(
+      (bookmark) => bookmark.id === normalizedRecipe.id,
+    );
+    const next = toggleBookmark(normalizedRecipe);
     setBookmarks(next);
     if (persistenceEnabled) {
       void persistBookmarks(next);
+    }
+    if (!wasBookmarked && !normalizedRecipe.imageUrl) {
+      void loadBookmarkImage(normalizedRecipe);
     }
   };
 
@@ -164,6 +171,46 @@ export default function App() {
     });
   };
 
+  const loadBookmarkImage = async (recipe: Recipe) => {
+    try {
+      const response = await fetch("/api/recipes/image", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          title: recipe.title,
+          description: recipe.description,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Unable to generate bookmark image.");
+      }
+
+      const data = (await response.json()) as { imageUrl: string | null };
+      if (!data.imageUrl) {
+        return;
+      }
+      const imageUrl = data.imageUrl;
+
+      setBookmarks((current) => {
+        const next = current.map((bookmark) =>
+          bookmark.id === recipe.id ? { ...bookmark, imageUrl } : bookmark,
+        );
+
+        saveBookmarks(next);
+        if (persistenceEnabled) {
+          void persistBookmarks(next);
+        }
+
+        return next;
+      });
+    } catch {
+      // A missing bookmark image should not break the rest of the app flow.
+    }
+  };
+
   const updateRecipeImageInGroups = (
     groupId: string,
     recipeId: string,
@@ -172,22 +219,6 @@ export default function App() {
     setSelectedRecipe((current) =>
       current && current.id === recipeId ? { ...current, imageUrl } : current,
     );
-
-    setBookmarks((current) => {
-      const next = current.map((recipe) =>
-        recipe.id !== recipeId ? recipe : { ...recipe, imageUrl },
-      );
-
-      if (next.some((recipe) => recipe.id === recipeId)) {
-        saveBookmarks(next);
-        if (persistenceEnabled) {
-          void persistBookmarks(next);
-        }
-        return next;
-      }
-
-      return current;
-    });
 
     setSearchGroups((current) => {
       const nextGroups = current.map((group) =>

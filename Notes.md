@@ -156,3 +156,36 @@ bookmark recipe id
 current search recipe id
 image update target id
 But I’d try this stronger fix first.
+
+### More Debugging
+
+That last change didn't fix it:
+
+don’t think stale database rows are the main issue here.
+
+I changed the behavior so search-result image updates no longer modify bookmarks at all. Instead:
+
+search rows manage their own image loading
+bookmarks manage their own image loading when you save them
+later searches should no longer be able to overwrite a saved bookmark’s image
+The key change is in src/App.tsx:
+
+removed bookmark updates from updateRecipeImageInGroups()
+added a dedicated loadBookmarkImage() path for newly bookmarked recipes
+npm run build passes.
+
+So for your next test:
+
+clear bookmarks
+clear search history
+bookmark a recipe
+run another search
+open a different result
+go back to bookmarks
+If it still happens after this change, then yes, the next step should be active debugging. At that point I’d add temporary logging showing:
+
+bookmark id/title/imageUrl
+opened search result id/title/imageUrl
+every image update target
+whether the update path is search group or bookmark
+But this fix is a cleaner architectural separation, so I’d test this first.
