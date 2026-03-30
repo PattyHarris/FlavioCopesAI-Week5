@@ -1,6 +1,8 @@
 import cors from "cors";
 import dotenv from "dotenv";
 import express from "express";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { z } from "zod";
 import { normalizeIngredients, readRecipeCache, writeRecipeCache } from "./cache.js";
 import { generateRecipeImage, generateRecipes } from "./openai.js";
@@ -22,6 +24,10 @@ const app = express();
 const port = Number(process.env.PORT || 8787);
 const isHostedRuntime = Boolean(process.env.RENDER || process.env.PORT);
 const host = process.env.HOST || (isHostedRuntime ? "0.0.0.0" : "127.0.0.1");
+const serverDirectory = path.dirname(fileURLToPath(import.meta.url));
+const projectRoot = path.resolve(serverDirectory, "..");
+const frontendDistDirectory = path.resolve(projectRoot, "dist");
+const frontendIndexFile = path.resolve(frontendDistDirectory, "index.html");
 
 const requestSchema = z.object({
   ingredients: z.array(z.string().min(1)).min(1),
@@ -193,6 +199,12 @@ app.delete("/api/search-history", async (_request, response) => {
       error instanceof Error ? error.message : "Unable to clear search history.";
     response.status(500).json({ error: message });
   }
+});
+
+app.use(express.static(frontendDistDirectory));
+
+app.get(/^\/(?!api).*/, (_request, response) => {
+  response.sendFile(frontendIndexFile);
 });
 
 app.listen(port, host, () => {
