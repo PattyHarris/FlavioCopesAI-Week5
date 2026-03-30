@@ -124,3 +124,35 @@ Remote Deployment:
 - Supabase
 
 The application performs all of the basic features.
+
+## Debugging
+
+One issue that took several tries was a problem where a bookmarked item's image was replaced by the last search result viewed. Last change:
+
+I tightened the recipe identity logic again in src/lib/recipeIdentity.ts.
+
+Before, the app was deriving its internal id from only:
+
+title
+cook time
+ingredients
+That still allowed collisions for recipes that looked broadly similar.
+
+Now the internal id is based on a hashed fingerprint of the full recipe content:
+
+title
+description
+cook time
+difficulty
+ingredients
+instructions
+That should make cross-search image bleed much less likely, and in practice it should eliminate the case you described unless two recipes are effectively identical.
+
+npm run build still passes.
+
+For the next test, I’d use exactly the same sequence as before. If it still happens after this change, then yes, the next useful debugging step would be for me to add a temporary on-screen/debug-console print of:
+
+bookmark recipe id
+current search recipe id
+image update target id
+But I’d try this stronger fix first.

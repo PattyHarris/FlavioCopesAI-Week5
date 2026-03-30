@@ -9,14 +9,28 @@ function slugify(value: string) {
     .slice(0, 80);
 }
 
-export function getStableRecipeId(recipe: Recipe) {
-  const title = slugify(recipe.title);
-  const cookTime = slugify(recipe.cookTime);
-  const ingredients = recipe.ingredients
-    .map((ingredient) => slugify(ingredient))
-    .join("-");
+function hashString(value: string) {
+  let hash = 0;
 
-  return `${title}-${cookTime}-${ingredients}`.slice(0, 180);
+  for (let index = 0; index < value.length; index += 1) {
+    hash = (hash * 31 + value.charCodeAt(index)) >>> 0;
+  }
+
+  return hash.toString(36);
+}
+
+export function getStableRecipeId(recipe: Recipe) {
+  const title = slugify(recipe.title) || "recipe";
+  const fingerprintSource = [
+    recipe.title,
+    recipe.description,
+    recipe.cookTime,
+    recipe.difficulty,
+    ...recipe.ingredients,
+    ...recipe.instructions,
+  ].join("||");
+
+  return `${title}-${hashString(fingerprintSource)}`;
 }
 
 export function normalizeRecipe(recipe: Recipe): Recipe {
