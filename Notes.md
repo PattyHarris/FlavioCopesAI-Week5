@@ -189,3 +189,16 @@ opened search result id/title/imageUrl
 every image update target
 whether the update path is search group or bookmark
 But this fix is a cleaner architectural separation, so I’d test this first.
+
+This last change fixed the issue.
+
+## Show Duplicate Results
+
+Asked the Agent about that problem and it suggested that it make a change:
+
+Now when you run the exact same ingredient search again:
+
+the existing search row is moved to the top
+it gets briefly highlighted
+the page scrolls back to that row
+no duplicate row is created

@@ -34,6 +34,7 @@ export default function App() {
   const [lastFetchSummary, setLastFetchSummary] = useState("");
   const [isClearHistoryModalOpen, setIsClearHistoryModalOpen] = useState(false);
   const [persistenceEnabled, setPersistenceEnabled] = useState(false);
+  const [highlightedGroupId, setHighlightedGroupId] = useState<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -97,6 +98,26 @@ export default function App() {
   );
 
   const shownRecipes = activeView === "discover" ? [] : bookmarks;
+
+  const getIngredientKey = (items: string[]) =>
+    [...new Set(items.map((item) => item.trim().toLowerCase()))]
+      .filter(Boolean)
+      .sort()
+      .join("|");
+
+  const focusSearchGroup = (groupId: string) => {
+    setHighlightedGroupId(groupId);
+
+    window.setTimeout(() => {
+      document
+        .getElementById(`search-group-${groupId}`)
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 0);
+
+    window.setTimeout(() => {
+      setHighlightedGroupId((current) => (current === groupId ? null : current));
+    }, 2200);
+  };
 
   const addIngredient = (value: string) => {
     const normalized = value.trim();
@@ -300,6 +321,33 @@ export default function App() {
       }
 
       const data = (await response.json()) as RecipeResponse;
+      const ingredientKey = getIngredientKey(data.ingredients);
+      const existingGroup = searchGroups.find(
+        (group) => getIngredientKey(group.ingredients) === ingredientKey,
+      );
+
+      if (existingGroup) {
+        const refreshedGroup: RecipeSearchGroup = {
+          ...existingGroup,
+          cached: data.cached,
+          createdAt: Date.now(),
+        };
+
+        setSearchGroups((current) => [
+          refreshedGroup,
+          ...current.filter((group) => group.id !== existingGroup.id),
+        ]);
+        if (persistenceEnabled) {
+          void persistSearchGroup(refreshedGroup);
+        }
+        setActiveView("discover");
+        setLastFetchSummary(
+          `Showing previous results for ${data.ingredients.join(", ")}.`,
+        );
+        focusSearchGroup(existingGroup.id);
+        return;
+      }
+
       const nextGroup: RecipeSearchGroup = {
         ...data,
         recipes: normalizeRecipes(data.recipes),
@@ -322,6 +370,7 @@ export default function App() {
       setLastFetchSummary(
         `${data.cached ? "Loaded from cache" : "Fresh AI suggestions"} for ${data.ingredients.join(", ")}.`,
       );
+      focusSearchGroup(nextGroup.id);
       void loadImagesForGroup(nextGroup);
     } catch (error) {
       setErrorMessage(
@@ -449,13 +498,14 @@ export default function App() {
                       <SearchResultsRow
                         key={group.id}
                         group={group}
-                        onOpen={setSelectedRecipe}
-                        onToggleBookmark={handleToggleBookmark}
-                        bookmarkedIds={bookmarkedIds}
-                        imageStates={imageStates}
-                      />
-                    ))}
-                  </div>
+                      onOpen={setSelectedRecipe}
+                      onToggleBookmark={handleToggleBookmark}
+                      bookmarkedIds={bookmarkedIds}
+                      imageStates={imageStates}
+                      highlighted={highlightedGroupId === group.id}
+                    />
+                  ))}
+                </div>
 
                   <div className="mt-6 flex justify-end">
                     <button

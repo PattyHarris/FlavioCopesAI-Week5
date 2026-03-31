@@ -8,6 +8,7 @@ type SearchResultsRowProps = {
   onToggleBookmark: (recipe: Recipe) => void;
   bookmarkedIds: Set<string>;
   imageStates: Record<string, "idle" | "loading" | "ready" | "failed">;
+  highlighted?: boolean;
 };
 
 export function SearchResultsRow({
@@ -16,6 +17,7 @@ export function SearchResultsRow({
   onToggleBookmark,
   bookmarkedIds,
   imageStates,
+  highlighted = false,
 }: SearchResultsRowProps) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
@@ -33,7 +35,14 @@ export function SearchResultsRow({
   };
 
   return (
-    <section className="rounded-[28px] border border-stone-300/70 bg-white/55 p-5">
+    <section
+      id={`search-group-${group.id}`}
+      className={
+        highlighted
+          ? "rounded-[28px] border border-sage-700/60 bg-white/70 p-5 ring-2 ring-sage-700/25 transition"
+          : "rounded-[28px] border border-stone-300/70 bg-white/55 p-5 transition"
+      }
+    >
       <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.28em] text-terracotta-500">
