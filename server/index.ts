@@ -208,5 +208,5 @@ app.get(/^\/(?!api).*/, (_request, response) => {
 });
 
 app.listen(port, host, () => {
-  console.log(`Recipe Finder server listening on http://${host}:${port}`);
+  console.log(`Pantry Chef server listening on http://${host}:${port}`);
 });
